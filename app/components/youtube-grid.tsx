@@ -207,23 +207,6 @@ export default function Component() {
   return (
     <div className={`min-h-screen ${isDarkMode ? "dark" : ""}`}>
       <div className="container mx-auto p-4 dark:bg-gray-800 transition-colors duration-200">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold dark:text-white">
-            YouTube Video Grid with Advanced IP Rotation
-          </h1>
-          <Button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            variant="outline"
-            size="icon"
-          >
-            {isDarkMode ? (
-              <Sun className="h-[1.2rem] w-[1.2rem]" />
-            ) : (
-              <Moon className="h-[1.2rem] w-[1.2rem]" />
-            )}
-          </Button>
-        </div>
-
         <div className="mb-4">
           <label htmlFor="videoCount" className="block mb-2 dark:text-white">
             Number of Videos:
