@@ -215,7 +215,7 @@ export default function Component() {
             type="number"
             id="videoCount"
             value={videoCount}
-            onChange={(e) => setVideoCount(parseInt(e.target.value, 10))}
+            onChange={(event) => setVideoCount(parseInt(event.target.value, 10))}
             min="1"
             max="20"
             className="w-full max-w-xs"
@@ -280,7 +280,7 @@ export default function Component() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: videoCount }).map((_, index) => (
+          {Array.from({ length: videoCount }).map((_, index: number) => (
             <div key={index} className="aspect-w-16 aspect-h-9">
               {currentVideoId ? (
                 <div className="relative">
