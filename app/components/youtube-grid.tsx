@@ -3,21 +3,22 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
-  Moon,
-  Sun,
   Play,
   Pause,
   Volume2,
   VolumeX,
   Settings,
+  Youtube,
+  X,
 } from "lucide-react";
+import Header from "./Header";
 
 // Common datacenter IP ranges (for demonstration)
 const IP_RANGES = [
-  { start: "154.16.0.0", end: "154.16.255.255" }, // DataCenter Range 1
-  { start: "192.241.128.0", end: "192.241.255.255" }, // DataCenter Range 2
-  { start: "46.101.0.0", end: "46.101.255.255" }, // DataCenter Range 3
-  { start: "104.236.0.0", end: "104.236.255.255" }, // DataCenter Range 4
+  { start: "154.16.0.0", end: "154.16.255.255" },
+  { start: "192.241.128.0", end: "192.241.255.255" },
+  { start: "46.101.0.0", end: "46.101.255.255" },
+  { start: "104.236.0.0", end: "104.236.255.255" },
 ];
 
 // Convert IP to numeric value for calculations
@@ -60,7 +61,6 @@ const useProxySystem = (count: number): string[] => {
 
     for (let i = 0; i < count; i++) {
       let range;
-      // Ensure each iframe uses a different IP range
       do {
         range = IP_RANGES[Math.floor(Math.random() * IP_RANGES.length)];
       } while (usedRanges.has(range) && usedRanges.size < IP_RANGES.length);
@@ -80,7 +80,6 @@ const useProxySystem = (count: number): string[] => {
         clearInterval(rotationInterval.current);
       }
 
-      // Random interval between 30-60 minutes
       const interval =
         Math.floor(Math.random() * (60 - 30 + 1) + 30) * 60 * 1000;
 
@@ -112,11 +111,32 @@ export default function Component() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [quality, setQuality] = useState("auto");
   const [videoUrl, setVideoUrl] = useState("");
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+  const [canSkip, setCanSkip] = useState(false);
   const iframeRefs = useRef<Array<HTMLIFrameElement | null>>([]);
   const playerStates = useRef<Record<number, number>>({});
-
-  // Use our custom proxy system
+  const countdownInterval = useRef<NodeJS.Timeout | null>(null);
   const proxyList = useProxySystem(videoCount);
+
+  useEffect(() => {
+    if (showAdModal && countdown > 0) {
+      countdownInterval.current = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+
+      // Enable skip button after 3 seconds
+      setTimeout(() => {
+        setCanSkip(true);
+      }, 3000);
+    }
+
+    return () => {
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+      }
+    };
+  }, [showAdModal, countdown]);
 
   useEffect(() => {
     const tag = document.createElement("script");
@@ -153,7 +173,6 @@ export default function Component() {
     return match ? match[1] : "";
   };
 
-  // Enhanced proxy URL creation with additional parameters
   const createProxiedUrl = (videoId: string): string => {
     const timestamp = Date.now();
     const randomParam = Math.random().toString(36).substring(7);
@@ -163,16 +182,25 @@ export default function Component() {
   const handleAddVideo = () => {
     const videoId = extractVideoId(videoUrl);
     if (videoId) {
-      setCurrentVideoId(videoId);
-      setVideoUrl("");
-      setIsPlaying(false);
+      setShowAdModal(true);
+      setCountdown(3);
+      setCanSkip(false);
+    }
+  };
+
+  const handleSkipAd = () => {
+    setShowAdModal(false);
+    setCurrentVideoId(extractVideoId(videoUrl));
+    setVideoUrl("");
+    setIsPlaying(false);
+    if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
     }
   };
 
   const postMessageToAllPlayers = (action: string, value?: unknown) => {
     iframeRefs.current.forEach((iframe) => {
       if (iframe && iframe.contentWindow) {
-        // Add small random delay for each iframe to make it look more natural
         setTimeout(() => {
           iframe.contentWindow?.postMessage(
             JSON.stringify({
@@ -182,7 +210,7 @@ export default function Component() {
             }),
             "*"
           );
-        }, Math.random() * 100); // Random delay up to 100ms
+        }, Math.random() * 100);
       }
     });
   };
@@ -207,129 +235,190 @@ export default function Component() {
   return (
     <div className={`min-h-screen ${isDarkMode ? "dark" : ""}`}>
       <div className="container mx-auto p-4 dark:bg-gray-800 transition-colors duration-200">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold dark:text-white">
-            YouTube Video Grid with Advanced IP Rotation
-          </h1>
-          <Button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            variant="outline"
-            size="icon"
-          >
-            {isDarkMode ? (
-              <Sun className="h-[1.2rem] w-[1.2rem] text-white" />
-            ) : (
-              <Moon className="h-[1.2rem] w-[1.2rem]" />
-            )}
-          </Button>
-        </div>
+        <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
-        <div className="mb-4">
-          <label htmlFor="videoCount" className="block mb-2 dark:text-white">
-            Number of Videos:
-          </label>
-          <Input
-            type="number"
-            id="videoCount"
-            value={videoCount}
-            onChange={(event) =>
-              setVideoCount(parseInt(event.target.value, 10))
-            }
-            min="1"
-            max="30"
-            className="w-full max-w-xs dark:text-white text-black"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="videoUrl" className="block mb-2 dark:text-white">
-            Add YouTube Video URL:
-          </label>
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              id="videoUrl"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
-              className="flex-1"
-            />
-            <Button onClick={handleAddVideo}>Set Video</Button>
-          </div>
-        </div>
-
-        <div className="mb-4 space-x-2">
-          <Button onClick={togglePlayPause}>
-            {isPlaying ? (
-              <Pause className="mr-2 h-4 w-4" />
-            ) : (
-              <Play className="mr-2 h-4 w-4" />
-            )}
-            {isPlaying ? "Pause All" : "Play All"}
-          </Button>
-
-          <Button onClick={toggleMute}>
-            {isMuted ? (
-              <VolumeX className="mr-2 h-4 w-4" />
-            ) : (
-              <Volume2 className="mr-2 h-4 w-4" />
-            )}
-            {isMuted ? "Unmute All" : "Mute All"}
-          </Button>
-
-          <div className="inline-block relative">
-            <Button className="inline-flex items-center">
-              <Settings className="mr-2 h-4 w-4" />
-              Quality: {quality.toUpperCase()}
-              <select
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                value={quality}
-                onChange={(e) => setVideoQuality(e.target.value)}
-              >
-                <option value="auto">Auto</option>
-                <option value="hd1080">1080p</option>
-                <option value="hd720">720p</option>
-                <option value="large">480p</option>
-                <option value="medium">360p</option>
-                <option value="small">240p</option>
-                <option value="tiny">144p</option>
-              </select>
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: videoCount }).map((_, i) => (
-            <div key={i} className="aspect-w-16 aspect-h-9">
-              {currentVideoId ? (
-                <div className="relative">
-                  <iframe
-                    ref={(el: HTMLIFrameElement | null) => {
-                      if (iframeRefs.current) {
-                        iframeRefs.current[i] = el;
-                      }
-                    }}
-                    src={createProxiedUrl(currentVideoId)}
-                    title={`YouTube video player ${i + 1}`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="w-full h-full rounded-lg"
-                  />
-                  <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded">
-                    IP: {proxyList[i]}
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full h-full rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Add a video URL
-                  </p>
-                </div>
-              )}
+        <div className="max-w-4xl mx-auto">
+          {/* Hero Section */}
+          <div className="text-center mb-8">
+            <div className="inline-block p-3 rounded-full bg-red-600 mb-4">
+              <Youtube className="h-8 w-8 text-white" />
             </div>
-          ))}
+            <h1 className="text-3xl font-bold mb-2 dark:text-white">
+              Multi-View YouTube Player
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              Watch multiple YouTube videos simultaneously with advanced
+              controls
+            </p>
+          </div>
+
+          {/* Control Panel */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Video Count Input */}
+              <div>
+                <label
+                  htmlFor="videoCount"
+                  className="block text-sm font-medium mb-2 dark:text-white"
+                >
+                  Number of Videos
+                </label>
+                <Input
+                  type="number"
+                  id="videoCount"
+                  value={videoCount}
+                  onChange={(e) => setVideoCount(parseInt(e.target.value, 10))}
+                  min="1"
+                  max="30"
+                  className="w-full dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* URL Input */}
+              <div>
+                <label
+                  htmlFor="videoUrl"
+                  className="block text-sm font-medium mb-2 dark:text-white"
+                >
+                  YouTube Video URL
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    id="videoUrl"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleAddVideo}
+                    className="whitespace-nowrap"
+                  >
+                    Set Video
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Playback Controls */}
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <Button
+                onClick={togglePlayPause}
+                className="min-w-[120px] transition-all"
+              >
+                {isPlaying ? (
+                  <Pause className="mr-2 h-4 w-4" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                {isPlaying ? "Pause All" : "Play All"}
+              </Button>
+
+              <Button
+                onClick={toggleMute}
+                className="min-w-[120px] transition-all"
+              >
+                {isMuted ? (
+                  <VolumeX className="mr-2 h-4 w-4" />
+                ) : (
+                  <Volume2 className="mr-2 h-4 w-4" />
+                )}
+                {isMuted ? "Unmute All" : "Mute All"}
+              </Button>
+
+              <div className="relative">
+                <Button className="min-w-[120px] transition-all">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Quality: {quality.toUpperCase()}
+                  <select
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    value={quality}
+                    onChange={(e) => setVideoQuality(e.target.value)}
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="hd1080">1080p</option>
+                    <option value="hd720">720p</option>
+                    <option value="large">480p</option>
+                    <option value="medium">360p</option>
+                    <option value="small">240p</option>
+                    <option value="tiny">144p</option>
+                  </select>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Video Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: videoCount }).map((_, i) => (
+              <div
+                key={i}
+                className="h-44 bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden shadow-lg"
+              >
+                {currentVideoId ? (
+                  <div className="relative w-full h-full">
+                    <iframe
+                      ref={(el) => {
+                        if (iframeRefs.current) {
+                          iframeRefs.current[i] = el;
+                        }
+                      }}
+                      src={createProxiedUrl(currentVideoId)}
+                      title={`YouTube video player ${i + 1}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full"
+                    />
+                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-full">
+                      IP: {proxyList[i]}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <Youtube className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Add a video URL to begin
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+      {/* Ad Modal */}
+      {showAdModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-2xl w-full mx-4 relative">
+            <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg mb-4">
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold mb-2">Advertisement</h2>
+                  <div className="w-full h-48 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white text-xl">
+                    Sample Advertisement
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {countdown > 0 ? `Skip available in ${countdown}s` : ""}
+              </div>
+              {canSkip && (
+                <Button
+                  onClick={handleSkipAd}
+                  className="flex items-center gap-2"
+                >
+                  Skip Ad <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
