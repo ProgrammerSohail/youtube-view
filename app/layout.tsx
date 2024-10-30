@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "YouTube Video Grid",
-  description: "A grid of YouTube videos with synchronous controls",
+  title: "YouTube Watch Time",
+  description: "Complete YouTube Watch Time",
 };
 
 export default function RootLayout({
