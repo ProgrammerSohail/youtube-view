@@ -217,7 +217,7 @@ export default function Component() {
             size="icon"
           >
             {isDarkMode ? (
-              <Sun className="h-[1.2rem] w-[1.2rem]" />
+              <Sun className="h-[1.2rem] w-[1.2rem] text-white" />
             ) : (
               <Moon className="h-[1.2rem] w-[1.2rem]" />
             )}
@@ -232,10 +232,12 @@ export default function Component() {
             type="number"
             id="videoCount"
             value={videoCount}
-            onChange={(event) => setVideoCount(parseInt(event.target.value, 10))}
+            onChange={(event) =>
+              setVideoCount(parseInt(event.target.value, 10))
+            }
             min="1"
-            max="20"
-            className="w-full max-w-xs"
+            max="30"
+            className="w-full max-w-xs dark:text-white text-black"
           />
         </div>
 
