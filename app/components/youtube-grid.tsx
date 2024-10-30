@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import Header from "./Header";
+import Image from "next/image";
+import Image1 from "@/public/image.png";
 
 // Common datacenter IP ranges (for demonstration)
 const IP_RANGES = [
@@ -155,6 +157,12 @@ export default function Component() {
           );
           if (iframeIndex !== -1) {
             playerStates.current[iframeIndex] = data.info;
+
+            // Update global playing state based on all players
+            const anyPlaying = Object.values(playerStates.current).some(
+              (state) => state === 1
+            );
+            setIsPlaying(anyPlaying);
           }
         }
       } catch {
@@ -199,9 +207,10 @@ export default function Component() {
   };
 
   const postMessageToAllPlayers = (action: string, value?: unknown) => {
-    iframeRefs.current.forEach((iframe) => {
+    iframeRefs.current.forEach((iframe, index) => {
       if (iframe && iframe.contentWindow) {
         setTimeout(() => {
+          // Only send command if the player exists
           iframe.contentWindow?.postMessage(
             JSON.stringify({
               event: "command",
@@ -210,7 +219,7 @@ export default function Component() {
             }),
             "*"
           );
-        }, Math.random() * 100);
+        }, index * 50); // Reduced delay between commands
       }
     });
   };
@@ -218,7 +227,13 @@ export default function Component() {
   const togglePlayPause = () => {
     const newIsPlaying = !isPlaying;
     setIsPlaying(newIsPlaying);
-    postMessageToAllPlayers(newIsPlaying ? "playVideo" : "pauseVideo");
+
+    // Send appropriate command to all players
+    if (newIsPlaying) {
+      postMessageToAllPlayers("playVideo");
+    } else {
+      postMessageToAllPlayers("pauseVideo");
+    }
   };
 
   const toggleMute = () => {
@@ -267,7 +282,7 @@ export default function Component() {
                   type="number"
                   id="videoCount"
                   value={videoCount}
-                  onChange={(e) => setVideoCount(parseInt(e.target.value, 10))}
+                  onChange={(e) => setVideoCount(Number(e.target.value) || 0)}
                   min="1"
                   max="30"
                   className="w-full dark:border-gray-700 dark:text-white"
@@ -332,7 +347,7 @@ export default function Component() {
                   <Settings className="mr-2 h-4 w-4" />
                   Quality: {quality.toUpperCase()}
                   <select
-                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    className="absolute inset-0 opacity-0 cursor-pointer text-black"
                     value={quality}
                     onChange={(e) => setVideoQuality(e.target.value)}
                   >
@@ -364,7 +379,7 @@ export default function Component() {
                           iframeRefs.current[i] = el;
                         }
                       }}
-                      src={createProxiedUrl(currentVideoId)}
+                      src={createProxiedUrl(currentVideoId) + "?autoplay=1"}
                       title={`YouTube video player ${i + 1}`}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
@@ -396,15 +411,32 @@ export default function Component() {
             <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg mb-4">
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold mb-2">Advertisement</h2>
+                  <h2 className="text-2xl font-bold mb-2">
+                    Visit my TikTok profile
+                  </h2>
                   <div className="w-full h-48 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white text-xl">
-                    Sample Advertisement
+                    <a
+                      href="https://www.tiktok.com/@programmer.sohail?is_from_webapp=1&sender_device=pc"
+                      className="text-white hover:underline"
+                    >
+                      <Image
+                        src={Image1}
+                        alt="TikTok Profile"
+                        width={600}
+                        height={600}
+                        className="w-full"
+                      />
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
+              <div
+                className={`text-sm text-white dark:text-gray-300 bg-black py-1 px-2 rounded-lg ${
+                  countdown > 0 ? "opacity-100" : "opacity-0"
+                }`}
+              >
                 {countdown > 0 ? `Skip available in ${countdown}s` : ""}
               </div>
               {canSkip && (
