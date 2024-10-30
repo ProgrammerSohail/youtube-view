@@ -137,7 +137,7 @@ export default function Component() {
             playerStates.current[iframeIndex] = data.info;
           }
         }
-      } catch (e) {
+      } catch {
         // Ignore invalid JSON
       }
     };
