@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
@@ -21,7 +21,7 @@ const IP_RANGES = [
 ];
 
 // Convert IP to numeric value for calculations
-const ipToLong = (ip: string) => {
+const ipToLong = (ip: string): number => {
   return (
     ip
       .split(".")
@@ -30,7 +30,7 @@ const ipToLong = (ip: string) => {
 };
 
 // Convert numeric value back to IP
-const longToIp = (long: number) => {
+const longToIp = (long: number): string => {
   return [
     (long >>> 24) & 255,
     (long >>> 16) & 255,
@@ -40,7 +40,7 @@ const longToIp = (long: number) => {
 };
 
 // Generate a random IP within a specific range
-const generateIpInRange = (startIp: string, endIp: string) => {
+const generateIpInRange = (startIp: string, endIp: string): string => {
   const start = ipToLong(startIp);
   const end = ipToLong(endIp);
   const random = start + Math.floor(Math.random() * (end - start));
@@ -48,15 +48,15 @@ const generateIpInRange = (startIp: string, endIp: string) => {
 };
 
 // Custom hook for managing proxy IPs
-const useProxySystem = (count: number) => {
+const useProxySystem = (count: number): string[] => {
   const [proxyList, setProxyList] = useState<string[]>([]);
   const lastRotation = useRef<number>(Date.now());
   const rotationInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Generate unique IPs for each iframe
-  const generateUniqueProxies = () => {
+  const generateUniqueProxies = useCallback(() => {
     const usedRanges = new Set();
-    const proxies = [];
+    const proxies: string[] = [];
 
     for (let i = 0; i < count; i++) {
       let range;
@@ -71,7 +71,7 @@ const useProxySystem = (count: number) => {
     }
 
     return proxies;
-  };
+  }, [count]);
 
   // Rotate IPs periodically with varying intervals
   useEffect(() => {
@@ -99,7 +99,7 @@ const useProxySystem = (count: number) => {
         clearInterval(rotationInterval.current);
       }
     };
-  }, [count]);
+  }, [generateUniqueProxies]);
 
   return proxyList;
 };
@@ -113,7 +113,7 @@ export default function Component() {
   const [quality, setQuality] = useState("auto");
   const [videoUrl, setVideoUrl] = useState("");
   const iframeRefs = useRef<Array<HTMLIFrameElement | null>>([]);
-  const playerStates = useRef<{ [key: number]: number }>({});
+  const playerStates = useRef<Record<number, number>>({});
 
   // Use our custom proxy system
   const proxyList = useProxySystem(videoCount);
@@ -146,7 +146,7 @@ export default function Component() {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  const extractVideoId = (url: string) => {
+  const extractVideoId = (url: string): string => {
     const regex =
       /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
@@ -154,7 +154,7 @@ export default function Component() {
   };
 
   // Enhanced proxy URL creation with additional parameters
-  const createProxiedUrl = (videoId: string, proxyIP: string) => {
+  const createProxiedUrl = (videoId: string): string => {
     const timestamp = Date.now();
     const randomParam = Math.random().toString(36).substring(7);
     return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}&controls=1&autoplay=0&t=${timestamp}&${randomParam}`;
@@ -169,8 +169,8 @@ export default function Component() {
     }
   };
 
-  const postMessageToAllPlayers = (action: string, value?: any) => {
-    iframeRefs.current.forEach((iframe, index) => {
+  const postMessageToAllPlayers = (action: string, value?: unknown) => {
+    iframeRefs.current.forEach((iframe) => {
       if (iframe && iframe.contentWindow) {
         // Add small random delay for each iframe to make it look more natural
         setTimeout(() => {
@@ -299,20 +299,24 @@ export default function Component() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: videoCount }).map((_, index: number) => (
-            <div key={index} className="aspect-w-16 aspect-h-9">
+          {Array.from({ length: videoCount }).map((_, i) => (
+            <div key={i} className="aspect-w-16 aspect-h-9">
               {currentVideoId ? (
                 <div className="relative">
                   <iframe
-                    ref={(el) => (iframeRefs.current[index] = el)}
-                    src={createProxiedUrl(currentVideoId, proxyList[index])}
-                    title={`YouTube video player ${index + 1}`}
+                    ref={(el: HTMLIFrameElement | null) => {
+                      if (iframeRefs.current) {
+                        iframeRefs.current[i] = el;
+                      }
+                    }}
+                    src={createProxiedUrl(currentVideoId)}
+                    title={`YouTube video player ${i + 1}`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     className="w-full h-full rounded-lg"
                   />
                   <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded">
-                    IP: {proxyList[index]}
+                    IP: {proxyList[i]}
                   </div>
                 </div>
               ) : (
